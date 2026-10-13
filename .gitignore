@@ -1,20 +1,8 @@
-# Python
 __pycache__/
 *.pyc
 .venv/
 venv/
-
-# caches, checkpoints and quick-look runs (rebuilt on the next run)
-jump_test/cache/
-jump_test/output_step*/
-jump_test/output_overnight/checkpoints_*/
-jump_test/output_overnight_smoke/
-jump_test/output_3d/surface_data.json
-kor_allt_*.log
-
-# editors and OS
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
-~$*.xlsx

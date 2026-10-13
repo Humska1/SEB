@@ -1,0 +1,5 @@
+Stock,Model,Median_jump_pct,Share_of_jumps_down_pct,Median_jumps_per_year
+BOL,Bates,-5.5488,65.8594,0.6189
+BOL,Merton,-17.1867,90.4634,0.7185
+VOLVB,Bates,-4.3414,74.6637,0.4895
+VOLVB,Merton,-14.0132,92.2194,0.8878

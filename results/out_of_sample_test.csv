@@ -1,0 +1,13 @@
+Stock,H,Fit_days,RMSE_z_Merton,RMSE_z_Bates,Bates_better_on_pct_of_days,DM_t,p_value,Verdict
+BOL,1,166,0.8636,0.6107,93.98,6.424,1.325e-10,Bates better
+BOL,2,165,0.9174,0.7145,90.3,6.348,2.186e-10,Bates better
+BOL,5,162,1.078,0.9718,81.48,4.929,8.273e-07,Bates better
+BOL,10,157,1.314,1.279,69.43,2.6,0.009322,Bates better
+BOL,20,147,1.534,1.607,48.3,-0.2184,0.8271,no significant difference
+BOL,40,127,1.867,2.031,25.98,-3.917,8.983e-05,Merton better
+VOLVB,1,166,1.416,0.9341,98.19,9.191,3.889e-20,Bates better
+VOLVB,2,165,1.508,1.119,95.15,7.884,3.175e-15,Bates better
+VOLVB,5,162,1.774,1.562,87.04,5.983,2.195e-09,Bates better
+VOLVB,10,157,2.173,2.063,75.8,4.281,1.858e-05,Bates better
+VOLVB,20,147,2.385,2.489,54.42,0.6607,0.5088,no significant difference
+VOLVB,40,127,2.726,3.059,27.56,-1.664,0.09608,no significant difference

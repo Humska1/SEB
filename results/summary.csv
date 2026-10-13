@@ -1,0 +1,7 @@
+Stock,Model,Options,RMSE_z,Inside_bid_ask_pct,Mean_IV_error_volpts,Median_abs_IV_error_volpts
+BOL,Black-Scholes,12768,1.0908,55.3102,-0.8556,1.8666
+BOL,Merton,12768,0.7790,86.1685,-0.3747,0.8845
+BOL,Bates,12768,0.4485,96.9846,-0.0744,0.5519
+VOLVB,Black-Scholes,11857,2.0502,23.5051,-1.2212,2.3862
+VOLVB,Merton,11857,1.2690,68.9129,-0.2649,0.8545
+VOLVB,Bates,11857,0.7019,86.0083,-0.1039,0.5131

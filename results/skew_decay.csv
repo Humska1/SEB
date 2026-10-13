@@ -1,0 +1,7 @@
+Stock,Series,Exponent,CI_low,CI_high,Pairs
+BOL,Market,-0.3637,-0.3905,-0.3349,763
+BOL,Merton,-0.6157,-0.6612,-0.5757,763
+BOL,Bates,-0.4254,-0.4462,-0.4043,763
+VOLVB,Market,-0.4095,-0.4227,-0.3929,766
+VOLVB,Merton,-0.7009,-0.7354,-0.6645,766
+VOLVB,Bates,-0.4439,-0.4603,-0.4256,766
