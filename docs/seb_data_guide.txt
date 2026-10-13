@@ -1,0 +1,13 @@
+Projekt 5: SEB
+
+Kontakt: SEB (namn och e-post borttagna)
+
+Projekt: Projektet syftar till att jämföra Black-Scholes-modellen med en jump-diffusion-modell, exempelvis Mertons Jump-Diffusion, för prissättning av aktiederivat. Genom analys av marknadsdata ska projektet undersöka om en modell som tar hänsyn till plötsliga prisrörelser bättre kan fånga egenskaper i marknadens optionsprissättning. Modellerna ska jämföras utifrån prissättning och risk, med särskilt fokus på om skillnaderna är relevanta ur ett tradingperspektiv.
+
+Zip-filen innehåller två filer; en för boliden och en för volvo. Filerna innehåller bid-ask priser från stängning för optioner samt underliggande aktie.
+
+
+Detta är amerikanska optioner, vilket innebär att de kan förtidslösas och att de därför egentligen inte kan värderas med Black&Scholes. Dock är förtidslösen endast teoretiskt korrekt att göra i samband med en utdelning i underliggande aktie, och jag har därför valt en period som inte innehåller någon utdelning. Detta innebär (för tydlighet):
+
+Optionerna kan värderas med black&scholes.
+Parametern för utdelning i modellen kan sättas till 0.
