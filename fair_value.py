@@ -12,7 +12,7 @@ For every trading day (2 May - 30 Dec 2025) and both stocks:
         Merton         Black-Scholes + randomly arriving, normally distributed jumps          (4 parameters per day)
         Bates          stochastic variance (Heston) + the same jumps as Merton               (8 parameters per day)
   4. Write each option's fair value under every model next to its bid/ask, the daily parameters, summary tables (all
-     options, by maturity, by moneyness) and four charts to results/.
+     options, by maturity) to csv/ and three charts to results/. The analysis by moneyness is in moneyness.py.
 
     python fair_value.py                 (about 10 minutes on a 6-core laptop; --jobs N sets the number of processes)
     python fair_value.py --report-only   (only redo the tables and charts from the saved results, seconds)
@@ -32,7 +32,8 @@ from scipy.special import ndtr
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(HERE, "data")
-RESULTS_DIR = os.path.join(HERE, "results")
+RESULTS_DIR = os.path.join(HERE, "results")      # charts (.png)
+CSV_DIR = os.path.join(HERE, "csv")              # tables (.csv)
 STOCKS = {"BOL": "Boliden", "VOLVB": "Volvo B"}
 
 R = 0.02                 # risk-free rate (put-call parity in the data implies 1.6-2.0 %)
@@ -45,10 +46,6 @@ SPREAD_FLOOR = 0.05      # smallest half-spread used in z (SEK)
 N_FIT, N_REPORT = 384, 2048   # COS terms: fast grid inside the optimiser, fine grid for reported prices
 MAT_BINS = [0, 30, 60, 90, 150, 230, 400]
 MAT_LABELS = ["0-30", "30-60", "60-90", "90-150", "150-230", "230-400"]
-# moneyness = strike / forward; puts below 1, calls above (only out-of-the-money options are used)
-MNY_BINS = [0, 0.85, 0.95, 1.00, 1.05, 1.15, np.inf]
-MNY_LABELS = ["Deep OTM put (<0.85)", "OTM put (0.85-0.95)", "ATM put (0.95-1.00)", "ATM call (1.00-1.05)",
-              "OTM call (1.05-1.15)", "Deep OTM call (>1.15)"]
 
 
 # =============================================================================
@@ -457,16 +454,14 @@ def chart_skew_decay(skews, decay, path):
 # 7. Main
 # =============================================================================
 def report():
-    """All tables and charts, from the saved fair values and parameters in results/."""
-    summaries, by_mat, by_mny, skews, decay, jumps, jump_rows = [], [], [], {}, [], {}, []
+    """All tables and charts, from the saved fair values and parameters in csv/."""
+    summaries, by_mat, skews, decay, jumps, jump_rows = [], [], {}, [], {}, []
     for stock in STOCKS:
-        fv = pd.read_csv(os.path.join(RESULTS_DIR, f"fair_values_{stock}.csv"), parse_dates=["Date", "Expiry"])
-        params = pd.read_csv(os.path.join(RESULTS_DIR, f"parameters_{stock}.csv"), parse_dates=["Date"])
+        fv = pd.read_csv(os.path.join(CSV_DIR, f"fair_values_{stock}.csv"), parse_dates=["Date", "Expiry"])
+        params = pd.read_csv(os.path.join(CSV_DIR, f"parameters_{stock}.csv"), parse_dates=["Date"])
         fv["Maturity"] = pd.cut(fv["Days"], MAT_BINS, labels=MAT_LABELS)
-        fv["Moneyness"] = pd.cut(np.exp(fv["k"]), MNY_BINS, right=False, labels=MNY_LABELS)
         summaries.append(fit_summary(fv).assign(Stock=stock))
         by_mat.append(fit_summary(fv, by=["Maturity"]).assign(Stock=stock))
-        by_mny.append(fit_summary(fv, by=["Moneyness"]).assign(Stock=stock))
         skews[stock] = skew_table(fv)
         decay.append(skew_decay(skews[stock]).assign(Stock=stock))
         jumps[stock] = jump_sizes(params)
@@ -474,25 +469,19 @@ def report():
 
     first = lambda frames: (lambda df: df[["Stock"] + [c for c in df.columns if c != "Stock"]])(
         pd.concat(frames, ignore_index=True))
-    out = {"summary": first(summaries), "summary_by_maturity": first(by_mat), "summary_by_moneyness": first(by_mny),
-           "skew_decay": first(decay), "jump_sizes": first(jump_rows)}
+    out = {"summary": first(summaries), "summary_by_maturity": first(by_mat), "skew_decay": first(decay),
+           "jump_sizes": first(jump_rows)}
     for name, df in out.items():
-        df.to_csv(os.path.join(RESULTS_DIR, f"{name}.csv"), index=False, float_format="%.4f")
+        df.to_csv(os.path.join(CSV_DIR, f"{name}.csv"), index=False, float_format="%.4f")
     chart_inside(out["summary_by_maturity"], "Maturity", MAT_LABELS, MAT_LABELS, "days to expiry",
                  "Share of options each model prices inside the bid/ask spread, by maturity",
                  os.path.join(RESULTS_DIR, "fit_by_maturity.png"))
-    chart_inside(out["summary_by_moneyness"], "Moneyness", MNY_LABELS, [l.replace(" (", "\n(") for l in MNY_LABELS],
-                 "strike / forward", "Share of options each model prices inside the bid/ask spread, by moneyness",
-                 os.path.join(RESULTS_DIR, "fit_by_moneyness.png"))
     chart_skew_decay(skews, out["skew_decay"], os.path.join(RESULTS_DIR, "skew_decay.png"))
     chart_jump_sizes(jumps, os.path.join(RESULTS_DIR, "jump_sizes.png"))
 
     pd.set_option("display.width", 220)
     print("\nFit (all days): RMSE in half-spreads and share of options priced inside bid/ask")
     print(out["summary"].round(3).to_string(index=False))
-    print("\nShare inside bid/ask by moneyness (%)")
-    print(out["summary_by_moneyness"].pivot_table(index=["Stock", "Moneyness"], columns="Model",
-                                                  values="Inside_bid_ask_pct", sort=False).round(0).to_string())
     print("\nSkew decay exponent b in |skew| ~ T^b (95 % CI)")
     print(out["skew_decay"].round(3).to_string(index=False))
     print("\nSize of one jump")
@@ -506,6 +495,7 @@ def main():
     ap.add_argument("--report-only", action="store_true", help="skip the fitting, redo tables and charts")
     a = ap.parse_args()
     os.makedirs(RESULTS_DIR, exist_ok=True)
+    os.makedirs(CSV_DIR, exist_ok=True)
     t0 = time.time()
     if not a.report_only:
         for stock, name in STOCKS.items():
@@ -515,12 +505,12 @@ def main():
             with ProcessPoolExecutor(max_workers=a.jobs) as ex:
                 res = list(ex.map(fit_day, days, chunksize=2))
             pd.concat([r[0] for r in res], ignore_index=True).to_csv(
-                os.path.join(RESULTS_DIR, f"fair_values_{stock}.csv"), index=False, float_format="%.6g")
+                os.path.join(CSV_DIR, f"fair_values_{stock}.csv"), index=False, float_format="%.6g")
             pd.DataFrame([row for r in res for row in r[1]]).to_csv(
-                os.path.join(RESULTS_DIR, f"parameters_{stock}.csv"), index=False, float_format="%.6g")
+                os.path.join(CSV_DIR, f"parameters_{stock}.csv"), index=False, float_format="%.6g")
             print(f"  done ({time.time() - t0:.0f} s)", flush=True)
     report()
-    print(f"\nDone in {time.time() - t0:.0f} s. Files in {RESULTS_DIR}")
+    print(f"\nDone in {time.time() - t0:.0f} s. Tables in {CSV_DIR}, charts in {RESULTS_DIR}")
 
 
 if __name__ == "__main__":

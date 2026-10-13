@@ -3,7 +3,7 @@ out_of_sample.py  -  does Bates price FUTURE quotes better than Merton?
 =======================================================================
 
 A model with more parameters always fits today's quotes at least as well. The fair test is out of sample: take the
-parameters fitted on day t (results/parameters_<STOCK>.csv from fair_value.py) and price the quotes of trading day t + h,
+parameters fitted on day t (csv/parameters_<STOCK>.csv from fair_value.py) and price the quotes of trading day t + h,
 which the fit never saw, for h = 1, 2, 5, 10, 20 and 40 trading days.
 
 For each horizon:
@@ -39,7 +39,7 @@ def run_stock(stock):
     quotes = fv.load_quotes(stock)
     days = {dt: g for dt, g in quotes.groupby("Date")}
     dates = sorted(days)
-    params = pd.read_csv(os.path.join(fv.RESULTS_DIR, f"parameters_{stock}.csv"), parse_dates=["Date"])
+    params = pd.read_csv(os.path.join(fv.CSV_DIR, f"parameters_{stock}.csv"), parse_dates=["Date"])
     theta = {(r.Date, r.Model): np.array([getattr(r, p) for p in MODELS[r.Model].params]) for r in params.itertuples()}
     rows = []
     for i, dt in enumerate(dates):
@@ -104,8 +104,8 @@ def chart(summary, path):
 def main():
     per_day = pd.concat([run_stock(s) for s in fv.STOCKS], ignore_index=True)
     summary, tests = summarise(per_day)
-    summary.to_csv(os.path.join(fv.RESULTS_DIR, "out_of_sample.csv"), index=False, float_format="%.4f")
-    tests.to_csv(os.path.join(fv.RESULTS_DIR, "out_of_sample_test.csv"), index=False, float_format="%.4g")
+    summary.to_csv(os.path.join(fv.CSV_DIR, "out_of_sample.csv"), index=False, float_format="%.4f")
+    tests.to_csv(os.path.join(fv.CSV_DIR, "out_of_sample_test.csv"), index=False, float_format="%.4g")
     chart(summary, os.path.join(fv.RESULTS_DIR, "out_of_sample.png"))
     pd.set_option("display.width", 200)
     print("Pricing error h trading days after the fit (RMSE in half-spreads)")

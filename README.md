@@ -13,9 +13,11 @@ compare the model prices with the market, and test which model still prices well
 data/BOL.csv, data/VOLVB.csv    daily closing bid/ask quotes (stock + options)
         |
 fair_value.py                    CORE: fair value of every option under Black-Scholes, Merton and Bates
-        |                        -> results/fair_values_*.csv, parameters_*.csv, summary tables, 4 charts
+        |                        -> csv/fair_values_*.csv, parameters_*.csv, summary tables; results/: 3 charts
+        |-- moneyness.py         ANALYSIS: how each model does in the 6 moneyness buckets (deep OTM put ... deep OTM call)
+        |                        -> csv/summary_by_moneyness.csv, moneyness_options_*.csv; results/: 2 charts
 out_of_sample.py                 TEST: today's parameters on the quotes 1-40 trading days later, Merton vs Bates
-                                 -> results/out_of_sample*.csv, 1 chart
+                                 -> csv/out_of_sample*.csv; results/: 1 chart
 ```
 
 ## How we measure the market price
@@ -46,7 +48,7 @@ into option prices. Each model is fitted separately to each day's options (all e
 
 ## Results
 
-**1. Fit: share of options priced inside bid/ask** (`results/summary.csv`, all 167 days)
+**1. Fit: share of options priced inside bid/ask** (`csv/summary.csv`, all 167 days)
 
 | | Black-Scholes | Merton | Bates |
 |---|---|---|---|
@@ -57,8 +59,10 @@ into option prices. Each model is fitted separately to each day's options (all e
 
 ![fit by maturity](results/fit_by_maturity.png)
 
-**By moneyness** (`results/summary_by_moneyness.csv`). Options are grouped by strike / forward price (forward = stock price
-grown at the 2 % rate until expiry). Only out-of-the-money options are used: puts below the forward, calls above.
+**By moneyness** (`moneyness.py`, `csv/summary_by_moneyness.csv`). Options are grouped by strike / forward price
+(forward = stock price grown at the 2 % rate until expiry). Only out-of-the-money options are used: puts below the forward,
+calls above. An in-the-money option carries the same information as the out-of-the-money option with the same strike
+(put-call parity).
 
 | Bucket | Strike / forward | BS Boliden | Merton Boliden | Bates Boliden | BS Volvo B | Merton Volvo B | Bates Volvo B |
 |---|---|---|---|---|---|---|---|
@@ -74,7 +78,16 @@ crash wing but gives up some accuracy at the money. Bates fits wings and middle 
 
 ![fit by moneyness](results/fit_by_moneyness.png)
 
-**2. Why: the skew across maturities** (`results/skew_decay.csv`). The skew (how much more expensive downside protection is)
+The average error shows the direction: Black-Scholes prices puts too cheaply (by 2.5-6 vol points) and calls too
+expensively (1-3 vol points); Merton and Bates are within about 1 vol point everywhere, Bates within 0.3.
+
+![bias by moneyness](results/moneyness_bias.png)
+
+`python moneyness.py --option 280 250 90 put` classifies one option (stock price, strike, days to expiry, call or put):
+forward 281.4, strike / forward 0.89, out of the money, bucket "OTM put". Each classified option is added to
+`csv/classified_options.csv`.
+
+**2. Why: the skew across maturities** (`csv/skew_decay.csv`). The skew (how much more expensive downside protection is)
 fades with maturity like `T^b`. Black-Scholes has no skew at all. Merton's skew fades much too fast, Bates matches the market.
 
 | Exponent b (95 % CI) | Market | Merton | Bates |
@@ -84,7 +97,7 @@ fades with maturity like `T^b`. Black-Scholes has no skew at all. Merton's skew 
 
 ![skew decay](results/skew_decay.png)
 
-**What the jumps look like** (`results/jump_sizes.csv`). The size of one jump implied by the option prices, averaged over all
+**What the jumps look like** (`csv/jump_sizes.csv`). The size of one jump implied by the option prices, averaged over all
 days. Merton needs large crashes (median jump -17 % on Boliden, -14 % on Volvo B, about 90 % of jumps downward) to create the
 skew. Bates needs only small drops (median -6 % and -4 %), because its moving variance, which tends to rise when the stock
 falls, creates the rest of the skew. These are risk-neutral values: they include the price of crash insurance and are not a
@@ -93,7 +106,7 @@ effect (the jump share of variance, about 45 %) is.
 
 ![jump sizes](results/jump_sizes.png)
 
-**3. Out of sample: is Bates just over-fitting?** (`results/out_of_sample_test.csv`). Parameters fitted on day t price the
+**3. Out of sample: is Bates just over-fitting?** (`csv/out_of_sample_test.csv`). Parameters fitted on day t price the
 quotes of day t + h, which the fit never saw.
 
 | Pricing error h trading days later (RMSE in half-spreads), Merton / Bates | +1 | +5 | +10 | +20 | +40 |
@@ -118,6 +131,7 @@ Python 3.10 or newer.
 ```
 pip install -r requirements.txt
 python fair_value.py        # about 10 minutes on a 6-core laptop (all days, both stocks)
+python moneyness.py         # seconds, uses the fair values from fair_value.py
 python out_of_sample.py     # about 1 minute, uses the parameters from fair_value.py
 ```
 
@@ -129,12 +143,14 @@ redoes only the tables and charts from the saved results (a few seconds).
 | File | Content |
 |---|---|
 | `fair_value.py` | data loading and filters, Black-Scholes, Merton and Bates pricing (COS), daily fitting, summaries, charts |
+| `moneyness.py` | results by moneyness bucket (share inside bid/ask, average error), and a classifier for single options |
 | `out_of_sample.py` | the out-of-sample test with the Diebold-Mariano comparison |
 | `data/BOL.csv`, `data/VOLVB.csv` | Date, Type (Stock/Option), CallPut, Expiry, Strike, Bid, Ask: closing quotes, no names or account data |
-| `results/fair_values_<STOCK>.csv` | one row per option and day: quotes, mid, implied vol, and per model the fair value, z and implied vol |
-| `results/parameters_<STOCK>.csv` | Merton and Bates parameters per day, with the day's RMSE and share inside bid/ask |
-| `results/summary.csv`, `summary_by_maturity.csv`, `summary_by_moneyness.csv`, `skew_decay.csv`, `jump_sizes.csv` | the tables above |
-| `results/fit_by_maturity.png`, `fit_by_moneyness.png`, `skew_decay.png`, `jump_sizes.png` | the charts above |
-| `results/out_of_sample.csv`, `out_of_sample_test.csv` | error by horizon and the Merton vs Bates test |
+| `csv/fair_values_<STOCK>.csv` | one row per option and day: quotes, mid, implied vol, and per model the fair value, z and implied vol |
+| `csv/parameters_<STOCK>.csv` | Merton and Bates parameters per day, with the day's RMSE and share inside bid/ask |
+| `csv/moneyness_options_<STOCK>.csv` | one row per option and day: strike / forward, bucket, quotes, and per model the price, IV error and whether it is inside bid/ask |
+| `csv/summary.csv`, `summary_by_maturity.csv`, `summary_by_moneyness.csv`, `skew_decay.csv`, `jump_sizes.csv` | the tables above |
+| `results/` | all charts: `fit_by_maturity.png`, `fit_by_moneyness.png`, `moneyness_bias.png`, `skew_decay.png`, `jump_sizes.png`, `out_of_sample.png` |
+| `csv/out_of_sample.csv`, `out_of_sample_test.csv` | error by horizon and the Merton vs Bates test |
 
 The quotes were provided by SEB for this project. Ask SEB before making the repository public.
