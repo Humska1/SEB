@@ -33,7 +33,8 @@ from scipy.special import ndtr
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(HERE, "data")
 RESULTS_DIR = os.path.join(HERE, "results")      # charts (.png)
-CSV_DIR = os.path.join(HERE, "csv")              # tables (.csv)
+SUMMARY_DIR = os.path.join(HERE, "csv", "summary")   # result tables (.csv)
+DETAIL_DIR = os.path.join(HERE, "csv", "detail")     # per-option and per-day data (.csv)
 STOCKS = {"BOL": "Boliden", "VOLVB": "Volvo B"}
 
 R = 0.02                 # risk-free rate (put-call parity in the data implies 1.6-2.0 %)
@@ -457,8 +458,8 @@ def report():
     """All tables and charts, from the saved fair values and parameters in csv/."""
     summaries, by_mat, skews, decay, jumps, jump_rows = [], [], {}, [], {}, []
     for stock in STOCKS:
-        fv = pd.read_csv(os.path.join(CSV_DIR, f"fair_values_{stock}.csv"), parse_dates=["Date", "Expiry"])
-        params = pd.read_csv(os.path.join(CSV_DIR, f"parameters_{stock}.csv"), parse_dates=["Date"])
+        fv = pd.read_csv(os.path.join(DETAIL_DIR, f"fair_values_{stock}.csv"), parse_dates=["Date", "Expiry"])
+        params = pd.read_csv(os.path.join(DETAIL_DIR, f"parameters_{stock}.csv"), parse_dates=["Date"])
         fv["Maturity"] = pd.cut(fv["Days"], MAT_BINS, labels=MAT_LABELS)
         summaries.append(fit_summary(fv).assign(Stock=stock))
         by_mat.append(fit_summary(fv, by=["Maturity"]).assign(Stock=stock))
@@ -472,7 +473,7 @@ def report():
     out = {"summary": first(summaries), "summary_by_maturity": first(by_mat), "skew_decay": first(decay),
            "jump_sizes": first(jump_rows)}
     for name, df in out.items():
-        df.to_csv(os.path.join(CSV_DIR, f"{name}.csv"), index=False, float_format="%.4f")
+        df.to_csv(os.path.join(SUMMARY_DIR, f"{name}.csv"), index=False, float_format="%.4f")
     chart_inside(out["summary_by_maturity"], "Maturity", MAT_LABELS, MAT_LABELS, "days to expiry",
                  "Share of options each model prices inside the bid/ask spread, by maturity",
                  os.path.join(RESULTS_DIR, "fit_by_maturity.png"))
@@ -495,7 +496,8 @@ def main():
     ap.add_argument("--report-only", action="store_true", help="skip the fitting, redo tables and charts")
     a = ap.parse_args()
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    os.makedirs(CSV_DIR, exist_ok=True)
+    os.makedirs(SUMMARY_DIR, exist_ok=True)
+    os.makedirs(DETAIL_DIR, exist_ok=True)
     t0 = time.time()
     if not a.report_only:
         for stock, name in STOCKS.items():
@@ -505,12 +507,12 @@ def main():
             with ProcessPoolExecutor(max_workers=a.jobs) as ex:
                 res = list(ex.map(fit_day, days, chunksize=2))
             pd.concat([r[0] for r in res], ignore_index=True).to_csv(
-                os.path.join(CSV_DIR, f"fair_values_{stock}.csv"), index=False, float_format="%.6g")
+                os.path.join(DETAIL_DIR, f"fair_values_{stock}.csv"), index=False, float_format="%.6g")
             pd.DataFrame([row for r in res for row in r[1]]).to_csv(
-                os.path.join(CSV_DIR, f"parameters_{stock}.csv"), index=False, float_format="%.6g")
+                os.path.join(DETAIL_DIR, f"parameters_{stock}.csv"), index=False, float_format="%.6g")
             print(f"  done ({time.time() - t0:.0f} s)", flush=True)
     report()
-    print(f"\nDone in {time.time() - t0:.0f} s. Tables in {CSV_DIR}, charts in {RESULTS_DIR}")
+    print(f"\nDone in {time.time() - t0:.0f} s. Tables in {SUMMARY_DIR} and {DETAIL_DIR}, charts in {RESULTS_DIR}")
 
 
 if __name__ == "__main__":

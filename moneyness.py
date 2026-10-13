@@ -17,12 +17,12 @@ information as the out-of-the-money option with the same strike, by put-call par
 
 Two uses:
 
-    python moneyness.py                          from csv/fair_values_*.csv (run fair_value.py first):
-                                                   csv/moneyness_options_<STOCK>.csv  every option with its bucket
-                                                   csv/summary_by_moneyness.csv       table per bucket and model
+    python moneyness.py                          from csv/detail/fair_values_*.csv (run fair_value.py first):
+                                                   csv/detail/moneyness_options_<STOCK>.csv  every option with its bucket
+                                                   csv/summary/summary_by_moneyness.csv table per bucket and model
                                                    results/fit_by_moneyness.png, results/moneyness_bias.png
     python moneyness.py --option 280 250 90 put  classify one option: stock price, strike, days to expiry, call/put;
-                                                 the result is also added to csv/classified_options.csv
+                                                 the result is also added to csv/detail/classified_options.csv
 """
 
 import argparse
@@ -58,7 +58,7 @@ def classify(S, K, days, call_put):
 
 def table(stock):
     """Per bucket and model: number of options, spread, share inside bid/ask, average and typical IV error."""
-    f = pd.read_csv(os.path.join(fv.CSV_DIR, f"fair_values_{stock}.csv"))
+    f = pd.read_csv(os.path.join(fv.DETAIL_DIR, f"fair_values_{stock}.csv"))
     f["Strike_over_forward"] = np.exp(f["k"])
     f["Bucket"] = bucket(f["Strike_over_forward"])
     per_option = f[["Date", "Expiry", "Days", "CallPut", "Strike", "S", "F", "Strike_over_forward", "Bucket", "Bid", "Ask",
@@ -67,7 +67,7 @@ def table(stock):
         per_option[f"{label}_price"] = f[f"{m}_Price"]
         per_option[f"{label}_IV_error_volpts"] = 100 * (f[f"{m}_IV"] - f["IV_Mid"])
         per_option[f"{label}_inside_bid_ask"] = (f[f"{m}_Price"] >= f["Bid"]) & (f[f"{m}_Price"] <= f["Ask"])
-    per_option.to_csv(os.path.join(fv.CSV_DIR, f"moneyness_options_{stock}.csv"), index=False, float_format="%.6g")
+    per_option.to_csv(os.path.join(fv.DETAIL_DIR, f"moneyness_options_{stock}.csv"), index=False, float_format="%.6g")
     rows = []
     for b, g in f.groupby("Bucket", observed=True):
         for m, label in fv.MODELS.items():
@@ -115,14 +115,14 @@ def main():
         res = classify(S, K, days, cp)
         for key, v in res.items():
             print(f"  {key:20s} {v:.4f}" if isinstance(v, float) else f"  {key:20s} {v}")
-        path = os.path.join(fv.CSV_DIR, "classified_options.csv")
+        path = os.path.join(fv.DETAIL_DIR, "classified_options.csv")
         row = pd.DataFrame([dict(Stock_price=S, Strike=K, Days=days, CallPut=cp, **res)])
         row.to_csv(path, mode="a", header=not os.path.exists(path), index=False, float_format="%.6g")
         print(f"  (added to {path})")
         return
 
     t = pd.concat([table(s) for s in fv.STOCKS], ignore_index=True)
-    t.to_csv(os.path.join(fv.CSV_DIR, "summary_by_moneyness.csv"), index=False, float_format="%.4f")
+    t.to_csv(os.path.join(fv.SUMMARY_DIR, "summary_by_moneyness.csv"), index=False, float_format="%.4f")
     chart(t, "Inside_bid_ask_pct", "options priced inside bid/ask (%)",
           "Share of options each model prices inside the bid/ask spread, by moneyness",
           os.path.join(fv.RESULTS_DIR, "fit_by_moneyness.png"))
@@ -136,7 +136,7 @@ def main():
         print(f"\n{what}")
         print(t.pivot_table(index=["Stock", "Bucket", "Range"], columns="Model", values=col, sort=False)
               [list(fv.MODELS.values())].round(1).to_string())
-    print(f"\nTables in {fv.CSV_DIR}: moneyness_options_<STOCK>.csv, summary_by_moneyness.csv")
+    print(f"\nTables: {fv.DETAIL_DIR} (moneyness_options_<STOCK>.csv), {fv.SUMMARY_DIR} (summary_by_moneyness.csv)")
     print(f"Charts in {fv.RESULTS_DIR}: fit_by_moneyness.png, moneyness_bias.png")
 
 
